@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Alseha MedPort — WhatsApp AI Demo</title>
+<style>
+  :root{
+    --wa-bg: #0b141a;
+    --wa-header: #202c33;
+    --wa-bubble-in: #202c33;
+    --wa-bubble-out: #005c4b;
+    --wa-text: #e9edef;
+    --wa-text-dim: #8696a0;
+    --wa-accent: #00a884;
+    --admin-bg: #f4f1ea;
+    --admin-card: #ffffff;
+    --admin-ink: #1b2420;
+    --admin-accent: #b5623a;
+    --admin-line: #e3ddd0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; background:transparent;}
+  .app-shell{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 760px;
+    margin: 0 auto;
+    color: var(--wa-text);
+  }
+  .mode-bar{
+    display:flex; align-items:center; justify-content:center;
+    background: var(--admin-ink);
+    color: #f4f1ea;
+    padding: 12px 16px;
+    border-radius: 14px 14px 0 0;
+    font-size: 13px;
+  }
+  .mode-bar .label{ opacity:.65; font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+  .mode-toggle{ display:flex; gap:6px; background:rgba(255,255,255,0.08); padding:4px; border-radius:999px; }
+  .mode-toggle button{
+    border:none; background:transparent; color:#f4f1ea; opacity:.6;
+    padding:6px 14px; border-radius:999px; font-size:12.5px; cursor:pointer;
+    font-family:inherit; transition: all .15s ease;
+  }
+  .mode-toggle button.active{ background:#b5623a; opacity:1; font-weight:600; }
+
+  .wa-wrap{ background: var(--wa-bg); border-radius: 0 0 14px 14px; overflow:hidden; min-height: 580px; display:flex; flex-direction:column; }
+  .wa-header{ background: var(--wa-header); display:flex; align-items:center; gap:12px; padding: 10px 16px; }
+  .wa-avatar{ width:38px; height:38px; border-radius:50%; background: linear-gradient(135deg, #00a884, #00766c); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#fff; flex-shrink:0; }
+  .wa-header .name{ font-size:15px; font-weight:600; }
+  .wa-header .status{ font-size:12px; color: var(--wa-text-dim); }
+
+  .wa-chat{
+    flex:1; background-color: var(--wa-bg); padding: 14px; overflow-y:auto;
+    min-height: 380px; max-height: 460px; display:flex; flex-direction:column; gap:2px;
+  }
+  .day-chip{ align-self:center; background: var(--wa-header); color: var(--wa-text-dim); font-size:11.5px; padding:5px 12px; border-radius:8px; margin: 6px 0 12px; }
+  .bubble-row{ display:flex; margin: 3px 0; }
+  .bubble-row.out{ justify-content:flex-end; }
+  .bubble{ max-width: 80%; padding: 7px 9px 8px 10px; border-radius: 8px; font-size: 14px; line-height: 1.42; white-space: pre-wrap; word-wrap: break-word; }
+  .bubble.in{ background: var(--wa-bubble-in); border-top-left-radius:0; }
+  .bubble.out{ background: var(--wa-bubble-out); border-top-right-radius:0; }
+  .bubble .meta{ display:block; text-align:right; font-size:10.5px; color:rgba(255,255,255,0.5); margin-top:4px; margin-left: 10px; float:right; }
+  .typing-row{ display:flex; margin:6px 0; }
+  .typing-bubble{ background: var(--wa-bubble-in); border-radius:8px; border-top-left-radius:0; padding: 10px 14px; display:flex; gap:4px; align-items:center; }
+  .dot{ width:6px; height:6px; border-radius:50%; background: var(--wa-text-dim); animation: bounce 1.2s infinite; }
+  .dot:nth-child(2){ animation-delay:.15s; }
+  .dot:nth-child(3){ animation-delay:.3s; }
+  @keyframes bounce{ 0%,60%,100%{ transform:translateY(0); opacity:.4;} 30%{ transform:translateY(-4px); opacity:1; } }
+
+  .wa-inputbar{ background: var(--wa-header); padding: 10px 12px; display:flex; align-items:center; gap:10px; }
+  .wa-inputbar input{ flex:1; background: #2a3942; border:none; border-radius: 22px; padding: 11px 16px; color: var(--wa-text); font-size:14px; font-family:inherit; }
+  .wa-inputbar input::placeholder{ color: var(--wa-text-dim); }
+  .wa-inputbar input:focus{ outline:none; }
+  .send-btn{ width:40px; height:40px; border-radius:50%; border:none; background: var(--wa-accent); color:#0b141a; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; font-size:17px; }
+  .send-btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .quick-replies{ display:flex; gap:8px; padding: 0 12px 10px; flex-wrap:wrap; background:var(--wa-header); }
+  .quick-replies button{ background: rgba(0,168,132,0.12); border: 1px solid rgba(0,168,132,0.4); color: #6fd8b8; border-radius: 16px; padding: 6px 12px; font-size: 12px; cursor:pointer; font-family:inherit; }
+
+  .admin-wrap{ background: var(--admin-bg); color: var(--admin-ink); border-radius: 0 0 14px 14px; min-height:580px; display:flex; flex-wrap:wrap; }
+  .admin-sidebar{ width: 200px; border-right: 1px solid var(--admin-line); padding: 16px 12px; flex-shrink:0; }
+  .admin-sidebar .eyebrow{ font-size: 10.5px; letter-spacing:.07em; text-transform:uppercase; color: var(--admin-accent); margin-bottom: 12px; font-weight:700; }
+  .conv-item{ padding: 9px 9px; border-radius: 8px; margin-bottom: 4px; background: var(--admin-card); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .conv-item .nm{ font-size:13px; font-weight:600; }
+  .conv-item .pv{ font-size:11px; color:#8a8275; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .conv-item .badge{ display:inline-block; background:#00a884; color:#fff; font-size:9.5px; padding:1px 6px; border-radius:8px; margin-left:5px; }
+
+  .admin-main{ flex:1; min-width: 280px; padding: 18px 22px; display:flex; flex-direction:column; }
+  .admin-main h2{ font-size:18px; margin:0 0 2px; }
+  .admin-main .sub{ font-size:12px; color:#8a8275; margin-bottom:14px; }
+  .admin-log{ flex:1; background: var(--admin-card); border: 1px solid var(--admin-line); border-radius: 10px; padding: 14px 16px; overflow-y:auto; min-height: 300px; max-height:340px; }
+  .log-entry{ margin-bottom: 14px; }
+  .log-entry .who{ font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; font-weight:700; margin-bottom:3px; }
+  .log-entry.patient .who{ color:#6b6258; }
+  .log-entry.bot .who{ color: var(--admin-accent); }
+  .log-entry .txt{ font-size:13.5px; line-height:1.5; }
+  .takeover-bar{ margin-top:12px; display:flex; gap:8px; }
+  .takeover-bar input{ flex:1; padding:9px 11px; border-radius:8px; border:1px solid var(--admin-line); font-family:inherit; font-size:13px; }
+  .takeover-bar button{ background: var(--admin-ink); color:#fff; border:none; border-radius:8px; padding: 9px 14px; font-size:12.5px; cursor:pointer; font-family:inherit; }
+  .ai-toggle-row{ display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12px; color:#6b6258; }
+  .ai-toggle-row .pill{ background: rgba(0,168,132,0.15); color:#00766c; padding:3px 9px; border-radius:10px; font-weight:600; }
+  .ai-toggle-row .pill.off{ background:rgba(181,98,58,0.15); color:var(--admin-accent); }
+  .ai-toggle-row .resume{ cursor:pointer; text-decoration:underline; }
+
+  .footer-note{ font-size:11px; color:#9a9286; text-align:center; padding: 10px 16px 0; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <div class="mode-bar">
+    <div class="mode-toggle">
+      <button id="btnWA" class="active">💬 Patient view</button>
+      <button id="btnAdmin">🛠️ Admin view</button>
+    </div>
+  </div>
+
+  <div id="waView" class="wa-wrap">
+    <div class="wa-header">
+      <div class="wa-avatar">AM</div>
+      <div style="flex:1">
+        <div class="name">Alseha MedPort</div>
+        <div class="status" id="waStatus">online</div>
+      </div>
+      <div style="color:var(--wa-text-dim)">&#8942;</div>
+    </div>
+    <div class="wa-chat" id="waChat">
+      <div class="day-chip">Today</div>
+    </div>
+    <div class="quick-replies" id="quickReplies"></div>
+    <div class="wa-inputbar">
+      <input id="waInput" placeholder="Type a message…">
+      <button class="send-btn" id="waSend">&#10148;</button>
+    </div>
+  </div>
+
+  <div id="adminView" class="admin-wrap" style="display:none">
+    <div class="admin-sidebar">
+      <div class="eyebrow">Active Conversations</div>
+      <div class="conv-item">
+        <div class="nm">Demo Patient <span class="badge">AI</span></div>
+        <div class="pv" id="convPreview">...</div>
+      </div>
+    </div>
+    <div class="admin-main">
+      <h2>Demo Patient — WhatsApp</h2>
+      <div class="sub">Every message, both directions, logged here in real time.</div>
+      <div class="admin-log" id="adminLog"></div>
+      <div class="ai-toggle-row">
+        <span class="pill" id="aiPill">AI active</span>
+        <span class="resume" id="resumeAI" style="display:none">Resume AI</span>
+      </div>
+      <div class="takeover-bar">
+        <input id="adminInput" placeholder="Type to take over this conversation as a human…">
+        <button id="adminSend">Send as human</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">Demo only — for the real product, this connects through the official WhatsApp Business API.</div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `You are Sara, the patient care coordinator for Alseha MedPort — a luxury medical tourism company in Bangalore, India, serving Arabic-speaking patients from the GCC (UAE, Saudi Arabia, Kuwait, Qatar, Bahrain, Oman).
+
+YOUR PERSONALITY:
+- Warm, reassuring, professional — like a trusted friend who happens to know healthcare deeply.
+- Never robotic. Never say "as an AI" or "I am a chatbot." You are Sara, part of the Alseha team.
+- Reply in the SAME language the patient writes in (Arabic, English, or Hindi). Mirror their primary language.
+- Keep replies conversational, like real WhatsApp messages: 2-5 sentences, not essays. Use line breaks for readability.
+- Use at most 1 relevant emoji occasionally, not in every message.
+
+COMPANY FACTS (use only these, don't invent other facts):
+- Founder: Dr. Iqbal Hussain, BAMS (Ayurvedic Medicine), PGDEMS (Emergency Medicine), PGDCC (Cardiac Care). Over 3,200 patient journeys coordinated, 5+ years experience.
+- Hospital partners: Apollo, Manipal, Fortis, Narayana Health, Aster CMI — all JCI/NABH accredited.
+- Location: Bangalore, India — 920m elevation, mild 20-28°C year round, 3.5 hour direct flights from Dubai/Riyadh/Abu Dhabi.
+- Services: Arabic-speaking drivers, translators, medical e-visa support (72hr approval), halal certified kitchens, mosque access, Friday prayer transport.
+- Average savings vs UAE/Gulf: 60-85% depending on treatment.
+- Typical timeline: inquiry to surgery in about 72 hours once documents are ready.
+
+TREATMENTS & PRICING (use these exact figures):
+1. Stem Cell Therapy — $4,500–$12,000 (vs $35,000–$80,000 USA/UK). 7-21 days. Treats CKD stages 2-4, joint degeneration, MS, autoimmune disorders, diabetes, liver cirrhosis, post-stroke rehab. No general anaesthesia.
+2. Knee & Hip Replacement — $5,000–$8,500 (vs $25,000–$45,000 UAE/UK). Robotic MAKOplasty. 3-5 nights hospital stay, walking same day, 18-22 day total trip.
+3. ESWT/ESMR Shock Wave Therapy — non-invasive, 3-6 sessions, treats plantar fasciitis (90% success), tennis elbow, Achilles tendinopathy, chronic back pain, ED. No anaesthesia.
+4. Full Dental Transformation — implants, veneers, Hollywood Smile, All-on-4. 80% savings vs Gulf.
+5. CKD & Kidney Care — nephrology + stem cell intervention to slow progression, improve GFR.
+6. Spinal & Ortho Surgery — disc surgery, spinal fusion, Mayo Clinic/NHS-trained surgeons.
+7. Ayurvedic Panchakarma — 7-21 day detox, dosha assessment, herbal treatments, weight management.
+8. Rejuvenation Retreat — NAD+ infusions, Hyperbaric O2, red-light therapy.
+
+ACCOMMODATION: 5-star hotels from $80/night (Leela Palace, Taj West End, ITC Windsor) — full concierge, halal dining, prayer facilities, pool & spa. Service apartments from $45/night — 1-3BR, full kitchen, laundry, Arabic IPTV, weekly housekeeping, ideal for families/long stays. Private villas from $180/night — gated, private pool, Arabic-speaking nurse, personal chef, driver, 24/7 medical monitoring. All stay options are within 15 minutes of hospital partners; Alseha negotiates rates and handles every detail.
+
+CONCIERGE / LOGISTICS (mention these naturally when patients ask about the overall trip, not just treatment):
+- Airport pickup and drop-off included, with an Arabic-speaking driver, available 24/7.
+- Arabic-speaking driver also available for hospital and city trips throughout the stay.
+- Medical Arabic translators present at all consultations.
+- Medical e-visa support, approved within 72 hours — Alseha arranges this.
+- Flight booking help — best fares from all GCC cities (Emirates, Air Arabia, IndiGo fly direct, ~3.5 hrs from Dubai/Riyadh/Abu Dhabi).
+- Halal certified kitchens, Arabic cuisine delivered to the room/hotel.
+- Mosques, Qibla rooms, and Friday prayer transport arranged.
+- Family companions are welcome; city tours can be arranged for them while the patient is treated.
+
+ON "TOTAL COST OF THE TRIP": Patients often ask this as one combined question. When they do, walk them through it as: (1) the treatment cost range from the list above, (2) accommodation choice and nightly rate × roughly their length of stay, (3) note that flights, visa, airport pickup, in-country driver, and translators are arranged by Alseha (the e-visa and ground logistics are part of the service, not a hidden cost, though flights themselves are paid by the patient). Give a realistic combined ballpark only when enough info is known (treatment + nights), and always offer to make this exact, free of charge, in a one-on-one consultation.
+
+ON BANGALORE / LOGISTICS QUESTIONS ("is it safe", "is it easy for Arabic speakers", "what is Bangalore like"): Reassure naturally using these facts — Bangalore is India's "Garden City," 920m elevation, mild 20-28°C year-round (no extreme heat), home to 50+ JCI/NABH accredited hospitals, and Alseha's whole purpose is to remove the friction of being a foreigner there: Arabic-speaking staff, halal food, mosque access, and a dedicated coordinator from arrival to departure.
+
+YOUR GOALS:
+1. Answer accurately and warmly using only the facts above.
+2. Build trust — mention Dr. Iqbal and hospital partners naturally when relevant.
+3. After quoting a treatment price, it's natural to briefly mention that stay, airport pickup, and visa support are all arranged too — patients usually want to know the full picture, not just the medical cost in isolation.
+4. Gently guide toward booking a FREE consultation (always free, no obligation, reply within 2 hours).
+5. NEVER give a medical diagnosis or promise a specific outcome. Always note a free consultation with the doctor is needed to confirm suitability for their specific case.
+6. If asked something outside the facts above, say warmly you'll connect them with Dr. Iqbal's team directly, and a human will follow up — don't invent facts.
+7. If the patient is ready to book, thank them, say the team will WhatsApp within 2 hours, and mention wa.me/918660286300.
+
+Stay in character as Sara. Only break character if directly asked "are you a bot/AI" — then be honest you're an AI assistant working alongside Dr. Iqbal's human team, who monitor every conversation.`;
+
+let messages = [
+  { who: 'in', text: "السلام عليكم، أنا مهتم بعلاج الخلايا الجذعية لمشكلة في الركبة. كم التكلفة؟", time: nowTime(), human:false }
+];
+let aiPaused = false;
+let typing = false;
+
+const QUICK_PROMPTS = [
+  "What's the cost of knee replacement?",
+  "هل التأشيرة الطبية صعبة؟",
+  "Tell me about Dr. Iqbal",
+  "Do you have halal food?",
+  "What's the total cost including stay?",
+  "Do you arrange airport pickup?",
+  "What hotel options do you have?",
+  "Is Bangalore safe and easy for Arabic speakers?"
+];
+
+function nowTime(){
+  return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.innerText = str;
+  return div.innerHTML;
+}
+
+function renderQuickReplies(){
+  const el = document.getElementById('quickReplies');
+  el.innerHTML = '';
+  QUICK_PROMPTS.forEach(q => {
+    const btn = document.createElement('button');
+    btn.textContent = q;
+    btn.onclick = () => handleSend(q);
+    el.appendChild(btn);
+  });
+}
+
+function renderChat(){
+  const chat = document.getElementById('waChat');
+  chat.innerHTML = '<div class="day-chip">Today</div>';
+  messages.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'bubble-row ' + (m.who === 'in' ? 'in' : 'out');
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble ' + (m.who === 'in' ? 'in' : 'out');
+    bubble.innerHTML = escapeHtml(m.text).replace(/\n/g,'<br>') +
+      `<span class="meta">${m.time}${m.who==='out' ? ' &#10003;&#10003;' : ''}</span>`;
+    row.appendChild(bubble);
+    chat.appendChild(row);
+  });
+  if(typing){
+    const row = document.createElement('div');
+    row.className = 'typing-row';
+    row.innerHTML = '<div class="typing-bubble"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+    chat.appendChild(row);
+  }
+  chat.scrollTop = chat.scrollHeight;
+  document.getElementById('waStatus').textContent = typing ? 'typing…' : 'online';
+  renderAdmin();
+}
+
+function renderAdmin(){
+  const log = document.getElementById('adminLog');
+  log.innerHTML = '';
+  messages.forEach(m => {
+    const entry = document.createElement('div');
+    entry.className = 'log-entry ' + (m.who === 'in' ? 'patient' : 'bot');
+    const whoLabel = m.who === 'in' ? 'Patient' : (m.human ? 'You (admin, live)' : 'Sara (AI)');
+    entry.innerHTML = `<div class="who">${whoLabel}</div><div class="txt">${escapeHtml(m.text).replace(/\n/g,'<br>')}</div>`;
+    log.appendChild(entry);
+  });
+  if(typing){
+    const entry = document.createElement('div');
+    entry.className = 'log-entry bot';
+    entry.innerHTML = '<div class="who">Sara (AI)</div><div class="txt" style="opacity:.5">typing…</div>';
+    log.appendChild(entry);
+  }
+  log.scrollTop = log.scrollHeight;
+  const last = messages[messages.length-1];
+  if(last) document.getElementById('convPreview').textContent = last.text.slice(0,40);
+
+  const pill = document.getElementById('aiPill');
+  const resume = document.getElementById('resumeAI');
+  if(aiPaused){
+    pill.textContent = 'AI paused — you are replying';
+    pill.classList.add('off');
+    resume.style.display = 'inline';
+  } else {
+    pill.textContent = 'AI active';
+    pill.classList.remove('off');
+    resume.style.display = 'none';
+  }
+}
+
+async function sendToAI(){
+  if(aiPaused) return;
+  typing = true;
+  renderChat();
+  try{
+    const apiMessages = messages.map(m => ({
+      role: m.who === 'in' ? 'user' : 'assistant',
+      content: m.text
+    }));
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system: SYSTEM_PROMPT,
+        messages: apiMessages
+      })
+    });
+    const data = await response.json();
+    let replyText = "Sorry, something went wrong on this demo — please try again.";
+    if(data && data.content){
+      replyText = data.content.map(b => b.text || "").join("\n").trim() || replyText;
+    }
+    messages.push({ who:'out', text: replyText, time: nowTime(), human:false });
+  }catch(err){
+    messages.push({ who:'out', text: "(demo connection hiccup — try sending again)", time: nowTime(), human:false });
+  }finally{
+    typing = false;
+    renderChat();
+  }
+}
+
+function handleSend(presetText){
+  const input = document.getElementById('waInput');
+  const t = (presetText !== undefined ? presetText : input.value).trim();
+  if(!t) return;
+  messages.push({ who:'in', text:t, time: nowTime() });
+  input.value = '';
+  renderChat();
+  sendToAI();
+}
+
+function handleAdminSend(){
+  const input = document.getElementById('adminInput');
+  const t = input.value.trim();
+  if(!t) return;
+  aiPaused = true;
+  messages.push({ who:'out', text:t, time: nowTime(), human:true });
+  input.value = '';
+  renderChat();
+}
+
+document.getElementById('waSend').onclick = () => handleSend();
+document.getElementById('waInput').addEventListener('keydown', e => { if(e.key==='Enter') handleSend(); });
+document.getElementById('adminSend').onclick = handleAdminSend;
+document.getElementById('adminInput').addEventListener('keydown', e => { if(e.key==='Enter') handleAdminSend(); });
+document.getElementById('resumeAI').onclick = () => { aiPaused = false; renderChat(); };
+
+document.getElementById('btnWA').onclick = () => {
+  document.getElementById('btnWA').classList.add('active');
+  document.getElementById('btnAdmin').classList.remove('active');
+  document.getElementById('waView').style.display = 'flex';
+  document.getElementById('adminView').style.display = 'none';
+};
+document.getElementById('btnAdmin').onclick = () => {
+  document.getElementById('btnAdmin').classList.add('active');
+  document.getElementById('btnWA').classList.remove('active');
+  document.getElementById('adminView').style.display = 'flex';
+  document.getElementById('waView').style.display = 'none';
+  renderAdmin();
+};
+
+renderQuickReplies();
+renderChat();
+sendToAI(); // seed the first AI reply
+</script>
+</body>
+</html>
